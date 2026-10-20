@@ -14,6 +14,7 @@ Requirements: Node.js 20 or newer and a PostgreSQL database.
    - `DATABASE_URL`: PostgreSQL connection string.
    - `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase Admin service-account JSON.
    - `FIREBASE_PROJECT_ID`: Firebase project ID (optional if included in the service-account JSON).
+   - `DATABASE_SSL_MODE`: optional `disable`, `require`, or `verify-full`; production defaults to `verify-full`.
    - `PORT`: HTTP port (optional; defaults to `3000`).
 3. Start the service:
    ```bash
@@ -22,20 +23,23 @@ Requirements: Node.js 20 or newer and a PostgreSQL database.
 
 The database schema is created at startup. Check readiness at `GET /healthz`. API routes require a Firebase ID token in `Authorization: Bearer <token>`.
 
-## Deploying to Render with Neon
+## Deploying to Render with PostgreSQL
 
-1. Create a PostgreSQL database in Neon and copy its pooled connection string. Use the TLS-enabled URL (`sslmode=require`).
+1. Create a Render PostgreSQL database in the same region as the web service. Copy its internal connection string. A Neon database can also be used with its TLS-enabled connection string.
 2. Deploy this repository as a Render **Web Service**, with `npm ci` as the build command and `npm start` as the start command. Select Node.js 20 or newer.
 3. Set these Render environment variables:
-   - `DATABASE_URL` — the Neon connection string.
+   - `DATABASE_URL` — the PostgreSQL connection string.
    - `FIREBASE_SERVICE_ACCOUNT_JSON` — the complete service-account JSON from Firebase Admin SDK settings.
    - `FIREBASE_PROJECT_ID` — your Firebase project ID.
    - `NODE_ENV=production`
+   - `DATABASE_SSL_MODE=require` — only when the database presents a self-signed certificate, as in the reported Render startup error. This still encrypts the connection, but skips server certificate verification. Prefer `verify-full` when the database provides a certificate chain trusted by Node.
 4. Set the Render health-check path to `/healthz`.
 5. Enable Email/Password and Google providers in Firebase Authentication. For Google sign-in, configure the Android app's SHA fingerprints and OAuth clients, then download an updated `google-services.json` containing the web OAuth client ID.
 6. Set the Android app's API base URL to the deployed HTTPS service before releasing it.
 
 Keep the service-account JSON and database URL private. Do not place either in the Android app, source control, logs, or public build artifacts. Firebase client configuration in the Android app is not a substitute for the Admin SDK credentials on the server.
+
+If startup reports `self-signed certificate`, set `DATABASE_SSL_MODE=require` in Render's API service environment and redeploy. Production otherwise verifies the database certificate by default.
 
 ## Endpoints
 

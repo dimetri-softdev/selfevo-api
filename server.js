@@ -29,6 +29,24 @@ function isDateOnly(value) {
     return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
 
+function getDatabaseSslOptions(nodeEnv, sslMode) {
+    if (nodeEnv !== 'production' && !sslMode) {
+        return undefined;
+    }
+
+    const mode = sslMode || 'verify-full';
+    switch (mode) {
+        case 'disable':
+            return false;
+        case 'require':
+            return { rejectUnauthorized: false };
+        case 'verify-full':
+            return { rejectUnauthorized: true };
+        default:
+            throw new Error('DATABASE_SSL_MODE must be disable, require, or verify-full');
+    }
+}
+
 function createApp({ repository, verifyIdToken }) {
     if (!repository || typeof verifyIdToken !== 'function') {
         throw new Error('API repository and Firebase token verifier are required');
@@ -207,7 +225,7 @@ async function start() {
     const firebaseAuth = initializeFirebaseAdmin();
     const pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: true } : undefined,
+        ssl: getDatabaseSslOptions(process.env.NODE_ENV, process.env.DATABASE_SSL_MODE),
         max: 10,
         connectionTimeoutMillis: 10000,
         idleTimeoutMillis: 30000
@@ -248,4 +266,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { createApp, start };
+module.exports = { createApp, getDatabaseSslOptions, start };

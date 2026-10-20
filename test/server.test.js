@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
-const { createApp } = require('../server');
+const { createApp, getDatabaseSslOptions } = require('../server');
 
 let server;
 let baseUrl;
@@ -130,4 +130,19 @@ test('completion endpoint requires a valid habit ID and scopes it to the token u
         headers: { Authorization: 'Bearer invalid-token' }
     });
     assert.equal(response.status, 401);
+});
+
+test('database TLS defaults to certificate verification in production', () => {
+    assert.deepEqual(getDatabaseSslOptions('production'), { rejectUnauthorized: true });
+});
+
+test('database TLS can explicitly accept a self-signed certificate', () => {
+    assert.deepEqual(getDatabaseSslOptions('production', 'require'), { rejectUnauthorized: false });
+});
+
+test('database TLS rejects unsupported configuration values', () => {
+    assert.throws(
+        () => getDatabaseSslOptions('production', 'optional'),
+        /DATABASE_SSL_MODE must be/
+    );
 });
