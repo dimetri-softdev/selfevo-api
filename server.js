@@ -1,7 +1,8 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
-const admin = require('firebase-admin');
+const { cert, getApps, initializeApp } = require('firebase-admin/app');
+const { getAuth } = require('firebase-admin/auth');
 const { Pool } = require('pg');
 const { createRepository } = require('./repository');
 
@@ -174,8 +175,9 @@ function createApp({ repository, verifyIdToken }) {
 }
 
 function initializeFirebaseAdmin() {
-    if (admin.apps.length > 0) {
-        return admin.auth();
+    const existingApp = getApps()[0];
+    if (existingApp) {
+        return getAuth(existingApp);
     }
 
     const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
@@ -190,11 +192,11 @@ function initializeFirebaseAdmin() {
         throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
     }
 
-    const app = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
+    const app = initializeApp({
+        credential: cert(serviceAccount),
         projectId: process.env.FIREBASE_PROJECT_ID || serviceAccount.project_id
     });
-    return admin.auth(app);
+    return getAuth(app);
 }
 
 async function start() {
