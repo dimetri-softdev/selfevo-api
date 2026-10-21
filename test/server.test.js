@@ -1,6 +1,6 @@
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
-const { createApp, getDatabaseSslOptions } = require('../server');
+const { createApp, getDatabaseSslOptions, normalizeServiceAccount } = require('../server');
 
 let server;
 let baseUrl;
@@ -144,5 +144,24 @@ test('database TLS rejects unsupported configuration values', () => {
     assert.throws(
         () => getDatabaseSslOptions('production', 'optional'),
         /DATABASE_SSL_MODE must be/
+    );
+});
+
+test('service account private-key newlines are normalized', () => {
+    const account = normalizeServiceAccount({
+        project_id: 'selfevo-test',
+        client_email: 'firebase-admin@example.test',
+        private_key: '-----BEGIN PRIVATE KEY-----\\nkey-data\\n-----END PRIVATE KEY-----\\n'
+    });
+    assert.equal(
+        account.private_key,
+        '-----BEGIN PRIVATE KEY-----\nkey-data\n-----END PRIVATE KEY-----\n'
+    );
+});
+
+test('service-account configuration must include its private key and identity', () => {
+    assert.throws(
+        () => normalizeServiceAccount({ project_id: 'selfevo-test' }),
+        /must be a complete Firebase Admin service-account JSON/
     );
 });

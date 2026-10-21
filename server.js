@@ -47,6 +47,20 @@ function getDatabaseSslOptions(nodeEnv, sslMode) {
     }
 }
 
+function normalizeServiceAccount(serviceAccount) {
+    if (!serviceAccount || typeof serviceAccount !== 'object'
+        || typeof serviceAccount.project_id !== 'string'
+        || typeof serviceAccount.client_email !== 'string'
+        || typeof serviceAccount.private_key !== 'string') {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must be a complete Firebase Admin service-account JSON');
+    }
+
+    return {
+        ...serviceAccount,
+        private_key: serviceAccount.private_key.replace(/\\n/g, '\n').replace(/\r\n/g, '\n')
+    };
+}
+
 function createApp({ repository, verifyIdToken }) {
     if (!repository || typeof verifyIdToken !== 'function') {
         throw new Error('API repository and Firebase token verifier are required');
@@ -205,9 +219,12 @@ function initializeFirebaseAdmin() {
 
     let serviceAccount;
     try {
-        serviceAccount = JSON.parse(serviceAccountJson);
+        serviceAccount = normalizeServiceAccount(JSON.parse(serviceAccountJson));
     } catch (error) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
+        if (error instanceof SyntaxError) {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
+        }
+        throw error;
     }
 
     const app = initializeApp({
@@ -266,4 +283,4 @@ if (require.main === module) {
     });
 }
 
-module.exports = { createApp, getDatabaseSslOptions, start };
+module.exports = { createApp, getDatabaseSslOptions, normalizeServiceAccount, start };

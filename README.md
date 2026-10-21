@@ -41,6 +41,8 @@ Keep the service-account JSON and database URL private. Do not place either in t
 
 If startup reports `self-signed certificate`, set `DATABASE_SSL_MODE=require` in Render's API service environment and redeploy. Production otherwise verifies the database certificate by default.
 
+If startup reports `Failed to parse private key`, revoke any exposed service-account key and generate a new key. Replace the entire `FIREBASE_SERVICE_ACCOUNT_JSON` value in Render with the complete contents of the newly downloaded JSON file. Do not add extra quotes around the JSON or edit the `private_key` value; the service normalizes escaped `\n` line breaks. Confirm `FIREBASE_PROJECT_ID` matches the `project_id` in that JSON, save the environment variables, and redeploy.
+
 ## Endpoints
 
 - `GET /healthz` — database readiness check; does not expose database details.
