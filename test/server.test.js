@@ -1,6 +1,11 @@
 const assert = require('node:assert/strict');
 const { after, before, test } = require('node:test');
-const { createApp, getDatabaseSslOptions, normalizeServiceAccount } = require('../server');
+const {
+    createApp,
+    getDatabaseSslOptions,
+    normalizeServiceAccount,
+    parseServiceAccountCredentials
+} = require('../server');
 
 let server;
 let baseUrl;
@@ -163,5 +168,23 @@ test('service-account configuration must include its private key and identity', 
     assert.throws(
         () => normalizeServiceAccount({ project_id: 'selfevo-test' }),
         /must be a complete Firebase Admin service-account JSON/
+    );
+});
+
+test('base64 service-account JSON is parsed without altering key bytes', () => {
+    const serviceAccount = {
+        project_id: 'selfevo-test',
+        client_email: 'firebase-admin@example.test',
+        private_key: '-----BEGIN PRIVATE KEY-----\nplaceholder\n-----END PRIVATE KEY-----\n'
+    };
+    const base64Value = Buffer.from(JSON.stringify(serviceAccount), 'utf8').toString('base64');
+
+    assert.deepEqual(parseServiceAccountCredentials({ base64Value }), serviceAccount);
+});
+
+test('base64 credentials report malformed input without exposing credential data', () => {
+    assert.throws(
+        () => parseServiceAccountCredentials({ base64Value: Buffer.from('not-json').toString('base64') }),
+        /FIREBASE_SERVICE_ACCOUNT_BASE64 must be base64-encoded service-account JSON/
     );
 });

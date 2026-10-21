@@ -61,6 +61,33 @@ function normalizeServiceAccount(serviceAccount) {
     };
 }
 
+function parseServiceAccountCredentials({ jsonValue, base64Value }) {
+    if (base64Value) {
+        try {
+            const decoded = Buffer.from(base64Value, 'base64').toString('utf8');
+            return normalizeServiceAccount(JSON.parse(decoded));
+        } catch (error) {
+            if (error instanceof SyntaxError) {
+                throw new Error('FIREBASE_SERVICE_ACCOUNT_BASE64 must be base64-encoded service-account JSON');
+            }
+            throw error;
+        }
+    }
+
+    if (!jsonValue) {
+        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON or FIREBASE_SERVICE_ACCOUNT_BASE64 must be configured');
+    }
+
+    try {
+        return normalizeServiceAccount(JSON.parse(jsonValue));
+    } catch (error) {
+        if (error instanceof SyntaxError) {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
+        }
+        throw error;
+    }
+}
+
 function createApp({ repository, verifyIdToken }) {
     if (!repository || typeof verifyIdToken !== 'function') {
         throw new Error('API repository and Firebase token verifier are required');
@@ -212,20 +239,10 @@ function initializeFirebaseAdmin() {
         return getAuth(existingApp);
     }
 
-    const serviceAccountJson = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
-    if (!serviceAccountJson) {
-        throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must be configured');
-    }
-
-    let serviceAccount;
-    try {
-        serviceAccount = normalizeServiceAccount(JSON.parse(serviceAccountJson));
-    } catch (error) {
-        if (error instanceof SyntaxError) {
-            throw new Error('FIREBASE_SERVICE_ACCOUNT_JSON must contain valid JSON');
-        }
-        throw error;
-    }
+    const serviceAccount = parseServiceAccountCredentials({
+        jsonValue: process.env.FIREBASE_SERVICE_ACCOUNT_JSON,
+        base64Value: process.env.FIREBASE_SERVICE_ACCOUNT_BASE64
+    });
 
     const app = initializeApp({
         credential: cert(serviceAccount),
@@ -283,4 +300,10 @@ if (require.main === module) {
     });
 }
 
-module.exports = { createApp, getDatabaseSslOptions, normalizeServiceAccount, start };
+module.exports = {
+    createApp,
+    getDatabaseSslOptions,
+    normalizeServiceAccount,
+    parseServiceAccountCredentials,
+    start
+};
